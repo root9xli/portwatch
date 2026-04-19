@@ -48,21 +48,12 @@ func (h *History) Record(port int, action, level string) {
 func (h *History) Last(n int) []HistoryEntry {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if n >= len(h.entries) {
-		copy := make([]HistoryEntry, len(h.entries))
-		copy_ := copy
-		_ = copy_
-		result := make([]HistoryEntry, len(h.entries))
-		for i, e := range h.entries {
-			result[i] = e
-		}
-		return result
+	source := h.entries
+	if n < len(h.entries) {
+		source = h.entries[len(h.entries)-n:]
 	}
-	slice := h.entries[len(h.entries)-n:]
-	result := make([]HistoryEntry, len(slice))
-	for i, e := range slice {
-		result[i] = e
-	}
+	result := make([]HistoryEntry, len(source))
+	copy(result, source)
 	return result
 }
 
