@@ -53,3 +53,34 @@ func TestReporterSummaryAfterMultipleDiffs(t *testing.T) {
 		t.Errorf("unexpected counts: %v", counts)
 	}
 }
+
+// TestHistoryRecordedOnRemoval verifies that removed ports are correctly
+// recorded in history when a diff detects a port disappearing.
+func TestHistoryRecordedOnRemoval(t *testing.T) {
+	h := NewHistory(50)
+
+	old := makeSnapshot([]int{80, 443, 9090})
+	new_ := makeSnapshot([]int{80, 443})
+	result := Diff(old, new_)
+
+	for _, port := range result.Added {
+		h.Record(port, "added", "warn")
+	}
+	for _, port := range result.Removed {
+		h.Record(port, "removed", "info")
+	}
+
+	if h.Len() != 1 {
+		t.Fatalf("expected 1 history entry, got %d", h.Len())
+	}
+	entries := h.Last(1)
+	if entries[0].Port != 9090 {
+		t.Errorf("expected port 9090, got %d", entries[0].Port)
+	}
+	if entries[0].Action != "removed" {
+		t.Errorf("expected action removed, got %s", entries[0].Action)
+	}
+	if entries[0].Level != "info" {
+		t.Errorf("expected level info, got %s", entries[0].Level)
+	}
+}
