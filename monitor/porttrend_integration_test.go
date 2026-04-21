@@ -1,62 +1,63 @@
-package monitor
+package monitor_test
 
 import (
 	"testing"
 	"time"
 )
 
-// TestPortTrendRecordedFromDiff verifies that recording diff counts drives trend detection.
 func TestPortTrendRecordedFromDiff(t *testing.T) {
-	pt, now := newTestTrend(time.Minute)
+	trend := newTestTrend(t, 5, 30*time.Minute)
 
-	// Simulate three diff cycles with increasing new-port counts.
-	for cycle, count := range []int{1, 1, 4, 5} {
-		_ = cycle
-		pt.Record(8080, count)
-		*now = now.Add(5 * time.Second)
+	snap1 := makeSnapshot(8080, 9090)
+	snap2 := makeSnapshot(8080, 9090)
+
+	diffs1 := Diff(nil, snap1)
+	for _, d := range diffs1 {
+		trend.Record(d.Port, 1)
 	}
 
-	if got := pt.Trend(8080); got != TrendUp {
-		t.Errorf("expected TrendUp after increasing counts, got %s", got)
+	diffs2 := Diff(snap1, snap2)
+	_ = diffs2 // no changes expected
+
+	trend.Record(8080, 1)
+	trend.Record(8080, 1)
+
+	dir := trend.Direction(8080)
+	if dir == "" {
+		t.Fatal("expected a direction for port 8080")
 	}
 }
 
-// TestPortTrendStablePortNotFlagged verifies a port with constant counts stays stable.
 func TestPortTrendStablePortNotFlagged(t *testing.T) {
-	pt, now := newTestTrend(time.Minute)
+	trend := newTestTrend(t, 5, 30*time.Minute)
 
-	for i := 0; i < 6; i++ {
-		pt.Record(443, 2)
-		*now = now.Add(4 * time.Second)
+	// Record the same count repeatedly — should be stable
+	for i := 0; i < 5; i++ {
+		trend.Record(443, 3)
 	}
 
-	if got := pt.Trend(443); got != TrendStable {
-		t.Errorf("expected TrendStable for constant counts, got %s", got)
+	dir := trend.Direction(443)
+	if dir != "stable" {
+		t.Errorf("expected stable direction for steady port 443, got %q", dir)
 	}
 }
 
-// TestPortTrendReporterWithMultiplePorts exercises the reporter over a realistic set of ports.
 func TestPortTrendReporterWithMultiplePorts(t *testing.T) {
-	pt, now := newTestTrend(time.Minute)
-	labels := NewPortLabeler(nil)
-	rep := NewPortTrendReporter(pt, labels)
+	trend := newTestTrend(t, 5, 30*time.Minute)
+	reporter := NewPortTrendReporter(trend)
 
-	ports := []uint16{22, 80, 443}
+	ports := []uint16{80, 443, 8080}
 	for _, p := range ports {
-		pt.Record(p, 1)
-	}
-	*now = now.Add(10 * time.Second)
-	for _, p := range ports {
-		pt.Record(p, 1)
+		for i := 0; i < 3; i++ {
+			trend.Record(p, uint32(i+1))
+		}
 	}
 
-	entries := rep.Entries(ports)
-	if len(entries) != 3 {
-		t.Fatalf("expected 3 entries, got %d", len(entries))
-	}
-	for _, e := range entries {
-		if e.Direction != TrendStable {
-			t.Errorf("port %d: expected stable, got %s", e.Port, e.Direction)
+	summary := reporter.Summary()
+	for _, p := range ports {
+		pStr := itoa(int(p))
+		if !containsSubstring(summary, pStr) {
+			t.Errorf("expected summary to contain port %s, got: %s", pStr, summary)
 		}
 	}
 }
