@@ -22,6 +22,11 @@ func (w *Whitelist) Add(port int) {
 	w.ports[port] = struct{}{}
 }
 
+// Remove removes a port from the whitelist. It is a no-op if the port is not present.
+func (w *Whitelist) Remove(port int) {
+	delete(w.ports, port)
+}
+
 // Contains reports whether port is whitelisted.
 func (w *Whitelist) Contains(port int) bool {
 	_, ok := w.ports[port]
@@ -31,6 +36,15 @@ func (w *Whitelist) Contains(port int) bool {
 // Len returns the number of whitelisted ports.
 func (w *Whitelist) Len() int {
 	return len(w.ports)
+}
+
+// Ports returns a slice of all whitelisted port numbers in no particular order.
+func (w *Whitelist) Ports() []int {
+	ports := make([]int, 0, len(w.ports))
+	for p := range w.ports {
+		ports = append(ports, p)
+	}
+	return ports
 }
 
 // LoadWhitelistFile reads a file of newline-separated port numbers and
