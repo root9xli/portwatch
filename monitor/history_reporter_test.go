@@ -64,3 +64,17 @@ func TestReporterHasCritical(t *testing.T) {
 		t.Error("expected HasCritical to be true")
 	}
 }
+
+func TestReporterSummaryRespectsLimit(t *testing.T) {
+	h := NewHistory(10)
+	for i := 0; i < 5; i++ {
+		h.Record(8000+i, "added", "info")
+	}
+	r := NewReporter(h)
+	// Request only 2 entries and ensure the summary does not contain
+	// a port that would only appear beyond the limit.
+	out := r.Summary(2)
+	if strings.Contains(out, "8000") {
+		t.Errorf("expected oldest entries to be excluded from limited summary, got: %s", out)
+	}
+}
