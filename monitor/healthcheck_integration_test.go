@@ -62,5 +62,30 @@ func TestHealthCheckReadyzAfterCycle(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200 after cycle, got %d", resp.StatusCode)
 	}
-	_ = strings.Contains 
+	_ = strings.Contains
+}
+
+func TestHealthCheckReadyzBeforeCycle(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	ln.Close()
+
+	h := NewHealthCheck(addr)
+	h.Start()
+	defer h.Close()
+
+	time.Sleep(50 * time.Millisecond)
+
+	// No RecordCycle call — readyz should report not ready
+	resp, err := http.Get(fmt.Sprintf("http://%s/readyz", addr))
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("expected 503 before any cycle, got %d", resp.StatusCode)
+	}
 }
