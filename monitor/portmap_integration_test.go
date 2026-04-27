@@ -57,3 +57,22 @@ func TestPortMapSummaryAfterMultipleSets(t *testing.T) {
 		t.Error("expected port 80 to appear before 443 in summary")
 	}
 }
+
+// TestPortMapOverwrite verifies that calling Set on an already-mapped port
+// replaces the existing entry rather than leaving stale data.
+func TestPortMapOverwrite(t *testing.T) {
+	pm := NewPortMap()
+	pm.Set(6379, "redis-old", "old description")
+	pm.Set(6379, "redis", "cache layer")
+
+	e, ok := pm.Get(6379)
+	if !ok {
+		t.Fatal("expected port 6379 to be present after overwrite")
+	}
+	if e.Alias != "redis" {
+		t.Errorf("expected alias 'redis' after overwrite, got: %s", e.Alias)
+	}
+	if e.Description != "cache layer" {
+		t.Errorf("expected description 'cache layer' after overwrite, got: %s", e.Description)
+	}
+}
