@@ -57,6 +57,22 @@ func (pm *PortMap) Len() int {
 	return len(pm.entries)
 }
 
+// All returns a sorted slice of all PortMapEntry values.
+func (pm *PortMap) All() []PortMapEntry {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	ports := make([]int, 0, len(pm.entries))
+	for p := range pm.entries {
+		ports = append(ports, p)
+	}
+	sort.Ints(ports)
+	result := make([]PortMapEntry, 0, len(ports))
+	for _, p := range ports {
+		result = append(result, pm.entries[p])
+	}
+	return result
+}
+
 // Summary returns a human-readable listing of all mapped ports.
 func (pm *PortMap) Summary() string {
 	pm.mu.RLock()
